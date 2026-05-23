@@ -1,0 +1,87 @@
+{
+  "name": "garfo",
+  "version": "0.2020.1239",
+  "description": "Garfo is a browser-first realtime graph database fork with optional Nostr transport.",
+  "types": "dist/index.d.ts",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./sea": {
+      "types": "./dist/sea/index.d.ts",
+      "import": "./dist/sea/index.js",
+      "require": "./dist/sea/index.js"
+    },
+    "./lib/*": {
+      "types": "./dist/lib/*.d.ts",
+      "import": "./dist/lib/*.js",
+      "require": "./dist/lib/*.js"
+    },
+    "./gun.js": "./gun.js",
+    "./gun.min.js": "./gun.min.js",
+    "./sea.js": "./sea.js"
+  },
+  "scripts": {
+    "start": "npm --prefix test/nostr-chat start",
+    "build": "tsc --pretty",
+    "build:nostr-chat": "npm --prefix test/nostr-chat run build",
+    "build:all": "npm run build && npm run build:nostr-chat",
+    "build:watch": "tsc --watch --pretty",
+    "clean": "rm -rf dist",
+    "rebuild": "npm run clean && npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "garfo",
+    "gun",
+    "gunDB",
+    "graph",
+    "database",
+    "realtime",
+    "decentralized",
+    "offline-first",
+    "peer-to-peer",
+    "P2P",
+    "browser",
+    "react",
+    "vue",
+    "angular"
+  ],
+  "author": "Mark Nadal",
+  "license": "(Zlib OR MIT OR Apache-2.0)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/israelmarmar/garfo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/israelmarmar/garfo/issues"
+  },
+  "homepage": "https://github.com/israelmarmar/garfo#readme",
+  "files": [
+    "dist/",
+    "src/",
+    "gun.js",
+    "gun.min.js",
+    "sea.js"
+  ],
+  "peerDependencies": {
+    "nostr-tools": "^2.23.5"
+  },
+  "peerDependenciesMeta": {
+    "nostr-tools": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "esbuild": "^0.28.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "vite": "^8.0.14"
+  }
+}

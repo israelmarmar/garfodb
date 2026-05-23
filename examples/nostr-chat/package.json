@@ -1,0 +1,24 @@
+{
+  "name": "garfo-nostr-chat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "vite",
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.2",
+    "vite": "^8.0.14",
+    "typescript": "^5.9.3",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "nostr-tools": "^2.23.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3"
+  }
+}
