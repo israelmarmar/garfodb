@@ -164,6 +164,12 @@ messages.map().on((message, key) => {
 });
 ```
 
+## Acknowledgments
+```text
+https://gun.eco/
+```
+
+
 ## License
 
 This project keeps the upstream license family:
