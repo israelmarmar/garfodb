@@ -1,0 +1,133 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, sans-serif;
+  background: #0d1117;
+  color: #c9d1d9;
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+header {
+  text-align: center;
+  padding: 24px 0;
+  border-bottom: 1px solid #30363d;
+  margin-bottom: 24px;
+}
+
+header h1 { font-size: 1.8rem; margin-bottom: 8px; }
+header p { color: #8b949e; font-size: 0.9rem; }
+
+.panel { display: block; }
+
+.card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.card h2 { margin-bottom: 12px; font-size: 1.2rem; }
+.card p { margin-bottom: 8px; color: #8b949e; }
+
+input[type="text"],
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #c9d1d9;
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+input[type="text"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: #58a6ff;
+}
+
+button {
+  padding: 10px 20px;
+  background: #238636;
+  border: 1px solid #2ea043;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover { background: #2ea043; }
+
+button.danger {
+  background: #da3633;
+  border-color: #f85149;
+}
+
+button.danger:hover { background: #f85149; }
+
+video, canvas {
+  width: 100%;
+  max-width: 640px;
+  border-radius: 6px;
+  background: #000;
+  display: block;
+  margin: 12px 0;
+}
+
+#log {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 12px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.8rem;
+  color: #8b949e;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+footer { margin-top: 24px; }
+
+#startPanel { display: flex; gap: 16px; flex-wrap: wrap; }
+#startPanel .card { flex: 1; min-width: 280px; }
+#startPanel .card.wide { flex-basis: 100%; }
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #8b949e;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #58a6ff;
+  cursor: pointer;
+}
+
+.hint {
+  font-size: 0.78rem;
+  color: #484f58;
+  margin-bottom: 8px;
+}

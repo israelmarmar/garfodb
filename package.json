@@ -10,6 +10,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js"
     },
+    "./nostr": {
+      "types": "./dist/nostr/index.d.ts",
+      "import": "./dist/nostr/index.js",
+      "require": "./dist/nostr/index.js"
+    },
     "./sea": {
       "types": "./dist/sea/index.d.ts",
       "import": "./dist/sea/index.js",

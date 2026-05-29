@@ -9,10 +9,6 @@ const GUN_TAG = 'gun-db';
 const DEFAULT_RELAYS: string[] = [
   'wss://relay.damus.io',
   'wss://nos.lol',
-  'wss://relay.primal.net',
-  'wss://nostr.wine',
-  'wss://relay.snort.social',
-  'wss://eden.nostr.land',
 ];
 
 let ntMod: any = null;
@@ -121,7 +117,9 @@ export function setupNostrTransport(): void {
 
       root.on('out', function (this: any, msg: any) {
         this.to.next(msg);
-        if (msg.put || msg.get || msg.dam) {
+        // Only publish put messages (writes). get/dam are reads/peer mgmt
+        // that don't need Nostr persistence and waste rate limits.
+        if (msg.put) {
           publishGunMessage(msg, pool, relayUrls, sk, finalizeEvent, opt);
         }
         if (msg.dam === 'hi') {
