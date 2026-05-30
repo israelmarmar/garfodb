@@ -13,22 +13,10 @@ The project is designed for local-first applications that need:
 
 `Gun` is still exported as a compatibility alias, but new code should import and instantiate `Garfo`.
 
-## Install
-
-```bash
-npm install garfo
-```
-
-Nostr transport depends on `nostr-tools`. It is optional, but required when using `nostr` options:
-
-```bash
-npm install garfo nostr-tools
-```
-
 ## Basic Usage
 
 ```js
-import Garfo from 'garfo';
+import Garfo from '@lib/garfo';
 
 const db = new Garfo({
   localStorage: true,
