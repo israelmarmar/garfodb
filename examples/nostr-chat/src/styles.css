@@ -265,6 +265,123 @@ button, input { font: inherit; }
 .input-row button:hover { background: #06cf9c; }
 .input-row button:active { background: #00997a; }
 
+.attach-btn {
+  padding: 10px 14px;
+  background: #2a3942;
+  color: #cfd8dc;
+  border: 1px solid #3b4a54;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.attach-btn:hover {
+  background: #3b4a54;
+  color: #fff;
+}
+
+.file-attachment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.15);
+}
+
+.file-name {
+  font-size: 13px;
+  font-weight: 500;
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-size {
+  font-size: 11px;
+  color: #8696a0;
+  flex-shrink: 0;
+}
+
+.file-download {
+  background: #00a884;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.file-download:hover {
+  background: #06cf9c;
+}
+
+.file-download:active {
+  background: #00997a;
+}
+
+/* Estilos para o envio de arquivos */
+.file-upload-progress {
+  background: #2a3942;
+  border: 1px solid #3b4a54;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #8696a0;
+  text-align: center;
+}
+
+.file-upload-progress.success {
+  background: #005c4b;
+  border-color: #00a884;
+  color: #e9edef;
+}
+
+.file-upload-progress.error {
+  background: #8b1a1a;
+  border-color: #dc2626;
+  color: #fecaca;
+}
+
+.file-upload-progress .progress-text {
+  font-weight: 500;
+}
+
+.file-upload-progress .progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.file-upload-progress .progress-fill {
+  height: 100%;
+  background: #00a884;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.file-upload-progress.error .progress-fill {
+  background: #dc2626;
+}
+
+/* Animações para feedback visual */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.file-uploading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Melhorias para mobile */
 @media (max-width: 760px) {
   .topbar {
     align-items: stretch;

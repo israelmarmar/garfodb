@@ -7,8 +7,7 @@ const DEFAULT_GUN_KIND = 9111;
 const GUN_TAG = 'gun-db';
 
 const DEFAULT_RELAYS: string[] = [
-  'wss://relay.damus.io',
-  'wss://nos.lol',
+  'ws://127.0.0.1:6969'
 ];
 
 let ntMod: any = null;

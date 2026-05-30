@@ -2,6 +2,13 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 're
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { Garfo } from '../../../src/index.ts';
 import { setupNostrTransport } from '../../../src/nostr/index.ts';
+import { 
+  sendFileViaNostr, 
+  receiveFileFromNostr, 
+  saveFileToOPFS, 
+  loadFileFromOPFS,
+  setupFileChunkListener 
+} from './fileManager';
 
 setupNostrTransport();
 
@@ -19,6 +26,10 @@ type ChatMessage = {
   to: string;
   text: string;
   time: number;
+  fileKey?: string;
+  fileName?: string;
+  fileMime?: string;
+  fileSize?: number;
 };
 
 type ConversationMap = Record<string, ChatMessage[]>;
@@ -39,9 +50,15 @@ function App() {
   const [conversations, setConversations] = useState<ConversationMap>({});
   const [copied, setCopied] = useState(false);
   const [gun, setGun] = useState<GarfoRoot | null>(null);
+  const [fileUploadProgress, setFileUploadProgress] = useState<{
+    status: 'idle' | 'uploading' | 'success' | 'error';
+    message: string;
+    progress: number;
+  }>({ status: 'idle', message: '', progress: 0 });
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const attachFileInputRef = useRef<HTMLInputElement | null>(null);
   const seenMessagesRef = useRef<Record<string, true>>({});
   const identityRef = useRef<Identity | null>(null);
 
@@ -103,6 +120,13 @@ function App() {
       return;
     }
 
+    // Configurar listener para chunks de arquivo via Nostr
+    setupFileChunkListener((fileKey: string, metadata: any) => {
+      console.log('[NostrChat] Novo arquivo recebido:', fileKey, metadata);
+      // Aqui você processaria os chunks recebidos via Nostr
+      // Por enquanto, apenas logamos o evento
+    });
+
     const timer = window.setTimeout(() => {
       setStatus('Connected via Nostr relays');
     }, 2000);
@@ -126,10 +150,11 @@ function App() {
 
   function acceptMessage(msg: ChatMessage | undefined, key?: string) {
     const me = identityRef.current?.publicKey;
-    if (!me || !msg?.from || !msg.text || !msg.to || !msg.time) return;
+    if (!me || !msg?.from || !msg.to || !msg.time) return;
+    if (!msg.text && !msg.fileKey) return;
     if (msg.to !== me && msg.from !== me) return;
 
-    const msgKey = `${msg.from}|${msg.to}|${msg.time}|${msg.text}`;
+    const msgKey = `${msg.from}|${msg.to}|${msg.time}|${msg.text}|${msg.fileKey || ''}`;
     if (seenMessagesRef.current[msgKey]) return;
     seenMessagesRef.current[msgKey] = true;
 
@@ -140,6 +165,10 @@ function App() {
       to: msg.to,
       text: msg.text,
       time: Number(msg.time),
+      fileKey: msg.fileKey,
+      fileName: msg.fileName,
+      fileMime: msg.fileMime,
+      fileSize: msg.fileSize,
     };
 
     setConversations((prev) => {
@@ -181,6 +210,275 @@ function App() {
     }
 
     acceptMessage(msgData, 'local-' + now);
+  }
+
+  async function handleFileAttach(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file || !identity || !gun) return;
+
+    const target = recipient.trim();
+    if (!target) {
+      alert('Digite a chave pública do destinatário primeiro');
+      event.target.value = '';
+      return;
+    }
+    if (target === identity.publicKey) {
+      alert('Você não pode enviar arquivos para si mesmo');
+      event.target.value = '';
+      return;
+    }
+
+    // Resetar estado de upload
+    setFileUploadProgress({ status: 'idle', message: '', progress: 0 });
+    
+    // Mostrar feedback visual
+    setFileUploadProgress({
+      status: 'uploading',
+      message: `Preparando arquivo: ${file.name}`,
+      progress: 0
+    });
+
+    setStatus('Enviando arquivo...');
+
+    try {
+      const privateKeyBytes = hexToBytes(identity.privateKeyHex);
+      
+      const { fileKey, base64 } = await sendFileViaNostr(
+        file,
+        target,
+        privateKeyBytes,
+        (chunkIndex, totalChunks) => {
+          const progress = Math.round((chunkIndex / totalChunks) * 100);
+          setFileUploadProgress({
+            status: 'uploading',
+            message: `Enviando chunks: ${chunkIndex}/${totalChunks}`,
+            progress
+          });
+          setStatus(`Enviando arquivo: ${chunkIndex}/${totalChunks} chunks`);
+        }
+      );
+
+      const now = Date.now();
+      const msgData: ChatMessage = {
+        from: identity.publicKey,
+        to: target,
+        text: draft,
+        time: now,
+        fileKey,
+        fileName: file.name,
+        fileMime: file.type || 'application/octet-stream',
+        fileSize: file.size,
+      };
+
+      setDraft('');
+      setCurrentTarget(target);
+      event.target.value = '';
+
+      // Salvar no OPFS e publicar mensagem GUN em paralelo
+      setFileUploadProgress({
+        status: 'uploading',
+        message: 'Salvando arquivo no armazenamento local...',
+        progress: 90
+      });
+
+      await Promise.all([
+        saveFileToOPFS(fileKey + '_' + file.name, base64ToUint8Array(base64)),
+        (async () => {
+          try {
+            gun.get(CHAT_PATH).get('all').set(msgData);
+            gun.get(CHAT_PATH).get('inbox').get(target).set(msgData);
+          } catch (e) {
+            console.error('[NostrChat] file send failed:', e);
+            setStatus('Erro ao enviar mensagem de arquivo');
+          }
+        })()
+      ]);
+
+      acceptMessage(msgData, 'local-' + now);
+
+      setFileUploadProgress({
+        status: 'success',
+        message: 'Arquivo enviado com sucesso!',
+        progress: 100
+      });
+      setStatus('Arquivo enviado com sucesso!');
+
+      setTimeout(() => {
+        setFileUploadProgress({ status: 'idle', message: '', progress: 0 });
+      }, 3000);
+    } catch (error) {
+      console.error('[NostrChat] file attach failed:', error);
+      const errorMessage = 'Falha ao enviar arquivo: ' + (error as Error).message;
+      
+      setFileUploadProgress({
+        status: 'error',
+        message: errorMessage,
+        progress: 0
+      });
+      setStatus(errorMessage);
+
+      // Limpar erro após 5 segundos
+      setTimeout(() => {
+        setFileUploadProgress({ status: 'idle', message: '', progress: 0 });
+      }, 5000);
+    }
+  }
+
+  async function loadFileData(fileKey: string, knownFileName?: string, knownFileMime?: string, knownFileSize?: number): Promise<{ dataUrl: string; fileName: string; fileSize: number; fileMime: string }> {
+    try {
+      const fileName = knownFileName
+        ? fileKey + '_' + knownFileName
+        : fileKey + '_' + (await getFileNameFromMessage(fileKey));
+      try {
+        const fileData = await loadFileFromOPFS(fileName);
+        const base64 = uint8ArrayToBase64(fileData);
+        
+        if (knownFileName && knownFileMime) {
+          return {
+            dataUrl: `data:${knownFileMime};base64,${base64}`,
+            fileName: knownFileName,
+            fileSize: knownFileSize || 0,
+            fileMime: knownFileMime
+          };
+        }
+        
+        const metadata = await getFileMetadataFromMessage(fileKey);
+        
+        return {
+          dataUrl: `data:${metadata.fileMime};base64,${base64}`,
+          fileName: metadata.fileName,
+          fileSize: metadata.fileSize,
+          fileMime: metadata.fileMime
+        };
+      } catch (opfsError) {
+        console.log('Arquivo não encontrado no OPFS, tentando via Nostr:', opfsError);
+        
+        // Se não encontrar no OPFS, tentar receber via Nostr
+        const { dataUrl, fileName, fileSize, fileMime } = await receiveFileFromNostr(fileKey, (chunkIndex, totalChunks) => {
+          setStatus(`Recebendo arquivo: ${chunkIndex}/${totalChunks} chunks`);
+        });
+        
+        // Salvar no OPFS para uso futuro
+        const base64Data = dataUrl.split(',')[1];
+        const fileData = base64ToUint8Array(base64Data);
+        await saveFileToOPFS(fileKey + '_' + fileName, fileData);
+        
+        return { dataUrl, fileName, fileSize, fileMime };
+      }
+    } catch (error) {
+      console.error('[NostrChat] load file failed:', error);
+      throw new Error('Falha ao carregar arquivo: ' + (error as Error).message);
+    }
+  }
+
+  // Funções auxiliares para obter metadados da mensagem
+  function getFileNameFromMessage(fileKey: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      // Primeiro buscar no estado local (mais rápido)
+      for (const msgs of Object.values(conversations)) {
+        for (const msg of msgs) {
+          if (msg.fileKey === fileKey && msg.fileName) {
+            resolve(msg.fileName);
+            return;
+          }
+        }
+      }
+
+      if (!gun) {
+        reject(new Error('Gun não disponível'));
+        return;
+      }
+
+      // Buscar na caixa de entrada ou nas mensagens
+      const searchPaths = [
+        gun.get(CHAT_PATH).get('inbox').get(identity?.publicKey),
+        gun.get(CHAT_PATH).get('all')
+      ];
+
+      searchPaths.forEach(path => {
+        path.map().once((msg: ChatMessage) => {
+          if (msg.fileKey === fileKey && msg.fileName) {
+            resolve(msg.fileName);
+          }
+        });
+      });
+
+      // Timeout para evitar espera infinita
+      setTimeout(() => reject(new Error('Nome do arquivo não encontrado')), 5000);
+    });
+  }
+
+  function getFileMetadataFromMessage(fileKey: string): Promise<{ fileName: string; fileSize: number; fileMime: string }> {
+    return new Promise((resolve, reject) => {
+      // Primeiro buscar no estado local
+      for (const msgs of Object.values(conversations)) {
+        for (const msg of msgs) {
+          if (msg.fileKey === fileKey) {
+            resolve({
+              fileName: msg.fileName || 'unknown',
+              fileSize: msg.fileSize || 0,
+              fileMime: msg.fileMime || 'application/octet-stream'
+            });
+            return;
+          }
+        }
+      }
+
+      if (!gun) {
+        reject(new Error('Gun não disponível'));
+        return;
+      }
+
+      gun.get(CHAT_PATH).get('all').map().once((msg: ChatMessage) => {
+        if (msg.fileKey === fileKey) {
+          resolve({
+            fileName: msg.fileName || 'unknown',
+            fileSize: msg.fileSize || 0,
+            fileMime: msg.fileMime || 'application/octet-stream'
+          });
+        }
+      });
+
+      setTimeout(() => reject(new Error('Metadados do arquivo não encontrados')), 5000);
+    });
+  }
+
+  async function listAllOPFSFiles() {
+  // 1. Get the root of the Origin Private File System
+  const root = await navigator.storage.getDirectory();
+
+  // 2. Define a recursive function to walk through directories
+  async function walk(directoryHandle, path = "") {
+    for await (const [name, handle] of directoryHandle.entries()) {
+      const fullPath = path ? `${path}/${name}` : name;
+      
+      if (handle.kind === 'directory') {
+        console.log(`Directory: ${fullPath}`);
+        // Recursively enter subdirectories
+        await walk(handle, fullPath);
+      } else {
+        console.log(`File: ${fullPath}`);
+      }
+    }
+  }
+
+  await walk(root);
+}
+
+  async function downloadFileFromMessage(msg: ChatMessage) {
+    if (!msg.fileKey || !gun) return;
+    try {
+      const { dataUrl, fileName } = await loadFileData(msg.fileKey, msg.fileName, msg.fileMime, msg.fileSize);
+      const anchor = document.createElement('a');
+      anchor.href = dataUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    } catch (e: any) {
+      console.error('[NostrChat] download failed:', e);
+      alert('Download falhou: ' + e.message);
+    }
   }
 
   async function copyPublicKey() {
@@ -280,9 +578,18 @@ function App() {
             ) : currentMessages.map((message) => {
               const isMine = message.from === identity?.publicKey;
               return (
-                <div key={`${message.from}-${message.to}-${message.time}-${message.text}`} className={'message ' + (isMine ? 'mine' : 'other')}>
+                <div key={`${message.from}-${message.to}-${message.time}-${message.text}-${message.fileKey || ''}`} className={'message ' + (isMine ? 'mine' : 'other')}>
                   {!isMine && <div className="message-author">{shortenPk(message.from)}</div>}
-                  <div className="message-text">{message.text}</div>
+                  <div className="message-text">
+                    {message.text ? <div>{message.text}</div> : null}
+                    {message.fileKey ? (
+                      <div className="file-attachment">
+                        <span className="file-name">{message.fileName || 'File'}</span>
+                        <span className="file-size">{formatFileSize(message.fileSize || 0)}</span>
+                        <button type="button" className="file-download" onClick={() => downloadFileFromMessage(message)}>Download</button>
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="message-time">{new Date(message.time).toLocaleTimeString()}</div>
                 </div>
               );
@@ -297,8 +604,25 @@ function App() {
               placeholder="Type a message..."
               autoFocus
             />
+            <button type="button" className="attach-btn" onClick={() => attachFileInputRef.current?.click()}>Attach</button>
             <button type="submit">Send</button>
+            <input ref={attachFileInputRef} type="file" hidden onChange={handleFileAttach} />
           </form>
+
+          {/* Indicador de progresso de upload */}
+          {fileUploadProgress.status !== 'idle' && (
+            <div className={`file-upload-progress file-upload-progress-${fileUploadProgress.status} ${fileUploadProgress.status === 'uploading' ? 'file-uploading' : ''}`}>
+              <div className="progress-text">{fileUploadProgress.message}</div>
+              {fileUploadProgress.status === 'uploading' && (
+                <div className="progress-bar">
+                  <div 
+                    className="progress-fill" 
+                    style={{ width: `${fileUploadProgress.progress}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </section>
       </main>
     </div>
@@ -395,6 +719,42 @@ function hexToBytes(hex: string): Uint8Array {
 
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(',')[1] || '');
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+// Funções auxiliares para conversão de base64 e Uint8Array
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
 
 export default App;

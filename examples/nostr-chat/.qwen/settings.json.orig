@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/israelmarmar/gun-fork/gun-browser/src/nostr/**)",
+      "Read(//home/israelmarmar/gun-fork/gun-browser/src/gun/**)"
+    ]
+  },
+  "$version": 4
+}
