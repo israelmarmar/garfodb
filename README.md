@@ -1,7 +1,8 @@
 # Garfo
 
 > [!WARNING]
-> This software has not received external security review and may contain vulnerabilities and may not necessarily meet its stated security goals. Do not use it for sensitive use cases, and do not rely on its security until it has been reviewed. Work in progress.
+> This database is currently in beta and should be considered experimental. It has not yet undergone independent security or reliability reviews and may contain vulnerabilities, bugs, performance issues, or data integrity problems.
+Do not use it for production workloads, sensitive data, or critical systems. Features and behavior may change without notice. Use at your own risk while development is ongoing.. Work in progress.
 
 Garfo is a browser-first realtime graph database fork with optional Nostr transport. It keeps the familiar GUN-style graph API while exposing the package as `garfo` and the public constructor as `Garfo`.
 
